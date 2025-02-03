@@ -6,3 +6,4 @@ deepface==0.0.93
 tf-keras==2.18.0
 scipy==1.15.1
 python-dotenv==1.0.1
+pillow-heif==0.21.0

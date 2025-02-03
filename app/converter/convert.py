@@ -1,9 +1,16 @@
 from PIL import Image
 import os
 
+# Import and register HEIF/HEIC support
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    print("pillow-heif not installed. HEIF/HEIC support won't be available.")
+
 def convert_to_jpg(input_path, output_path=None, quality=85, optimize=True, progressive=False):
     """
-    Converts an image to JPG format with additional options.
+    Converts an image to JPG format, including HEIF/HEIC support.
 
     :param input_path: Path to the input image.
     :param output_path: Path for the output JPG image.
