@@ -29,34 +29,35 @@ def compute_euclidean_distance(embedding1, embedding2):
     """
     return euclidean(embedding1, embedding2)
 
-def match_embedding(query_embedding, reference_embeddings, metric="cosine", threshold=None):
+def match_embeddings(group_embeddings, reference_embedding, metric="cosine", threshold=None):
     """
-    Matches a query embedding against a dictionary of reference embeddings.
-    
+    Matches a set of group embeddings against a single reference embedding.
+
     Args:
-        query_embedding (np.array): The embedding vector to match.
-        reference_embeddings (dict): A dictionary where the keys are identifiers (e.g., filenames)
-                                     and the values are the embedding vectors.
+        group_embeddings (dict): A dictionary where keys are identifiers (e.g., filenames)
+                                 and values are the embedding vectors.
+        reference_embedding (np.array): The embedding vector to compare against.
         metric (str): The similarity metric to use ("cosine" or "euclidean").
-        threshold (float): A threshold to determine a match. For cosine, higher values indicate 
-                           similarity (e.g., 0.8). For Euclidean, lower values indicate similarity.
-    
+        threshold (float): A threshold to determine a match.
+                           - For cosine, higher values indicate similarity (e.g., 0.8).
+                           - For Euclidean, lower values indicate similarity.
+
     Returns:
-        dict: A dictionary with keys as reference identifiers and values as the computed similarity
+        dict: A dictionary with keys as group image identifiers and values as the computed similarity
               (or distance) scores for those that pass the threshold.
     """
     matches = {}
-    
-    for ref_id, ref_embedding in reference_embeddings.items():
+
+    for group_id, group_embedding in group_embeddings.items():
         if metric == "cosine":
-            similarity = compute_cosine_similarity(query_embedding, ref_embedding)
+            similarity = compute_cosine_similarity(group_embedding, reference_embedding)
             if threshold is None or similarity >= threshold:
-                matches[ref_id] = similarity
+                matches[group_id] = similarity
         elif metric == "euclidean":
-            distance = compute_euclidean_distance(query_embedding, ref_embedding)
+            distance = compute_euclidean_distance(group_embedding, reference_embedding)
             if threshold is None or distance <= threshold:
-                matches[ref_id] = distance
+                matches[group_id] = distance
         else:
             raise ValueError("Unsupported metric. Choose either 'cosine' or 'euclidean'.")
-    
+
     return matches

@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from app.data.database import init_db, is_image_in_db
 from app.runner.add_image_runner import add_reference_image, add_group_image, add_group_images_from_folder
-from app.runner.search_runner import process_group_image
+from app.runner.search_runner import search_in_group_images
 
 # Load environment variables
 load_dotenv()
@@ -57,7 +57,7 @@ def main():
             add_reference_image(IMAGE_PATH, model_name=MODEL_NAME)
         
         # Proceed with the search
-        process_group_image(IMAGE_PATH, model_name=MODEL_NAME, similarity_threshold=SIMILARITY_THRESHOLD)
+        search_in_group_images(IMAGE_PATH, similarity_threshold=SIMILARITY_THRESHOLD)
 
     else:
         print(f"Error: Invalid MODE '{MODE}'. Use 'add' or 'search'.")

@@ -1,9 +1,10 @@
 import sqlite3
 import json
 import os
+import numpy as np
 
 # Define the database path (it will be created inside the app folder)
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database.sqlite')
+DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
 
 def init_db():
     data_dir = os.path.dirname(DB_PATH)
@@ -69,21 +70,29 @@ def get_all_reference_embeddings():
     return reference_embeddings
 
 def get_all_group_embeddings():
+    """
+    Retrieves all group image embeddings from the database.
+    
+    Returns:
+        dict: A dictionary where keys are filenames and values are embedding vectors.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT filename, embedding FROM group_images')
+    cursor.execute("SELECT filename, embedding FROM group_images")
     rows = cursor.fetchall()
+    conn.close()
+
     group_embeddings = {}
     for filename, embedding_json in rows:
         try:
-            embedding = json.loads(embedding_json)
+            embedding = np.array(json.loads(embedding_json))  # Convert to NumPy array
             group_embeddings[filename] = embedding
         except Exception as e:
             print(f"Error parsing embedding for {filename}: {e}")
-    conn.close()
+
     return group_embeddings
 
-def insert_group_image(filename):
+def insert_group_image(filename, embedding):
     """
     Inserts a group image record into the database.
     
@@ -92,14 +101,17 @@ def insert_group_image(filename):
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    if hasattr(embedding, 'tolist'):
+        embedding = embedding.tolist()
+    embedding_json = json.dumps(embedding)
     try:
         cursor.execute('''
-            INSERT OR REPLACE INTO group_images (filename)
-            VALUES (?)
-        ''', (filename,))
+            INSERT OR REPLACE INTO group_images (filename, embedding)
+            VALUES (?, ?)
+        ''', (filename, embedding_json))
         conn.commit()
     except Exception as e:
-        print(f"Error inserting group image {filename}: {e}")
+        print(f"Error inserting reference image {filename}: {e}")
     finally:
         conn.close()
 
@@ -121,31 +133,31 @@ def is_image_in_db(table, filename):
     conn.close()
     return exists
 
-def fetch_all_reference_images():
+def get_reference_embedding(image_path):
     """
-    Fetches all reference images from the database.
-    
+    Retrieves the embedding of a specific reference image from the database.
+
+    Args:
+        image_path (str): The file path of the image.
+
     Returns:
-        list: A list of dictionaries with 'filename' and 'embedding'.
+        list or None: The embedding vector if found, otherwise None.
     """
+    image_filename = os.path.basename(image_path)  # Extract only the filename
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT filename, embedding FROM reference_images")
-    rows = cursor.fetchall()
-    conn.close()
-    return [{"image_name": row[0], "feature_vector": json.loads(row[1])} for row in rows]
-
-
-def fetch_all_group_images():
-    """
-    Fetches all group images from the database.
+    cursor.execute('SELECT embedding FROM reference_images WHERE filename = ?', (image_filename,))
+    row = cursor.fetchone()
     
-    Returns:
-        list: A list of dictionaries with 'filename'.
-    """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT filename FROM group_images")
-    rows = cursor.fetchall()
     conn.close()
-    return [{"filename": row[0]} for row in rows]
+    
+    if row:
+        try:
+            return json.loads(row[0])  # Convert JSON string back to a list
+        except Exception as e:
+            print(f"Error parsing embedding for {image_filename}: {e}")
+            return None
+    else:
+        print(f"Embedding not found for {image_filename}.")
+        return None

@@ -8,7 +8,9 @@
 
 # Ignore SQLite database files
 **/*.sqlite3
+**/*.sqlite
 **/*.db
+*.sqlite
 
 # Ignore image files
 images/

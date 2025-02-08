@@ -1,4 +1,3 @@
-# app/add_image_data.py
 import os
 import cv2
 from app.core.face_detector import detect_faces
@@ -30,14 +29,36 @@ def add_reference_image(image_path, model_name="Facenet"):
     except Exception as e:
         print(f"Error processing '{filename}': {e}")
 
-def add_group_image(image_path):
+def add_group_image(image_path, model_name="Facenet"):
+    """
+    Adds a group image to the database by detecting faces, extracting embeddings, and saving them.
+    
+    Args:
+        image_path (str): Path to the group image.
+        model_name (str): Name of the face recognition model.
+    """
     filename = os.path.basename(image_path)
     if is_image_in_db("group_images", filename):
         print(f"Group image '{filename}' is already in the database.")
         return
 
-    insert_group_image(filename)
-    print(f"Group image '{filename}' added successfully.")
+    img = cv2.imread(image_path)
+    if img is None:
+        print(f"Unable to read image: {image_path}")
+        return
+
+    results = detect_faces(image_path, save_output=False)
+    if not results:
+        print(f"No face detected in {image_path}.")
+        return
+
+    try:
+        aligned_face = align_face(img, results[0])
+        embedding = extract_face_embedding(aligned_face, model_name=model_name)
+        insert_group_image(filename, embedding)  # Now storing the embedding for group images
+        print(f"Group image '{filename}' added successfully.")
+    except Exception as e:
+        print(f"Error processing '{filename}': {e}")
 
 def add_group_images_from_folder(folder_path):
     image_extensions = (".jpg", ".jpeg", ".png")
