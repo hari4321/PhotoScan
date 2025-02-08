@@ -1,5 +1,11 @@
-from PIL import Image
 import os
+import cv2
+import numpy as np
+from PIL import Image
+from app.core.face_detector import detect_faces
+from app.core.face_alignment import align_face
+from app.core.feature_extraction import extract_face_embedding
+from app.data.database import is_image_in_db, insert_reference_image, insert_group_image
 
 # Import HEIF/HEIC support
 try:
@@ -16,48 +22,55 @@ except ImportError:
     print("rawpy or imageio not installed. RAW image support won't be available.")
 
 
-def convert_to_jpg(input_path, output_path=None, quality=85, optimize=True, progressive=False):
+def convert_to_jpg(input_path, quality=85, optimize=True, progressive=False):
     """
-    Converts an image (RAW, HEIF, or other formats) to JPG format.
+    Converts an image (RAW, HEIF, or other formats) to JPG format and returns the new path.
 
     :param input_path: Path to the input image.
-    :param output_path: Path for the output JPG image.
     :param quality: Quality of the output JPG (1-100).
     :param optimize: Boolean to optimize the image.
     :param progressive: Boolean to create a progressive JPEG.
+    :return: Path to the converted JPG image.
     """
     file_ext = os.path.splitext(input_path)[1].lower()
+    base, _ = os.path.splitext(input_path)
+    output_path = f"{base}.jpg"
 
     try:
         if file_ext in ['.cr2', '.nef', '.arw', '.dng', '.orf', '.rw2']:  # RAW file formats
-            convert_raw_to_jpg(input_path, output_path, quality, optimize, progressive)
+            with rawpy.imread(input_path) as raw:
+                rgb_image = raw.postprocess()
+                imageio.imsave(output_path, rgb_image, quality=quality)
         else:
             with Image.open(input_path) as img:
                 rgb_img = img.convert("RGB")
-                if not output_path:
-                    base, _ = os.path.splitext(input_path)
-                    output_path = f"{base}.jpg"
                 rgb_img.save(output_path, "JPEG", quality=quality, optimize=optimize, progressive=progressive)
-                print(f"Converted: {input_path} -> {output_path} (Quality: {quality}, Optimize: {optimize}, Progressive: {progressive})")
+        
+        print(f"Converted: {input_path} -> {output_path}")
+        return output_path
     except Exception as e:
         print(f"Error converting {input_path}: {e}")
+        return None
 
-
-def convert_raw_to_jpg(input_path, output_path, quality=85, optimize=True, progressive=False):
+def load_image(image_path):
     """
-    Converts RAW image files to JPG format.
-
-    :param input_path: Path to the RAW image.
-    :param output_path: Path for the output JPG image.
-    :param quality: Quality of the output JPG (1-100).
+    Loads an image from various formats (RAW, HEIF, etc.) and converts it to an OpenCV-compatible format.
+    
+    :param image_path: Path to the input image.
+    :return: OpenCV (BGR) image or None if failed.
     """
+    file_ext = os.path.splitext(image_path)[1].lower()
+    
     try:
-        with rawpy.imread(input_path) as raw:
-            rgb_image = raw.postprocess()
-            if not output_path:
-                base, _ = os.path.splitext(input_path)
-                output_path = f"{base}.jpg"
-            imageio.imsave(output_path, rgb_image, quality=quality)
-            print(f"Converted RAW: {input_path} -> {output_path}")
+        if file_ext in ['.cr2', '.nef', '.arw', '.dng', '.orf', '.rw2']:  # RAW file formats
+            with rawpy.imread(image_path) as raw:
+                rgb_image = raw.postprocess()
+                return cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
+        else:
+            with Image.open(image_path) as img:
+                img = img.convert("RGB")  # Convert to RGB
+                return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
     except Exception as e:
-        print(f"Error converting RAW file {input_path}: {e}")
+        print(f"Error loading image {image_path}: {e}")
+        return None
+
